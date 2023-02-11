@@ -1,3 +1,4 @@
 pub mod expression;
-pub mod parse;
+pub mod parser;
 pub mod errors;
+pub mod enums;

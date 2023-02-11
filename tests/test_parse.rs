@@ -1,6 +1,6 @@
 use expression_parser::errors::EmptyBuffer;
 use expression_parser::expression::ExpressionArgs;
-use expression_parser::parse::parse_string;
+use expression_parser::parser::parse_string;
 
 #[test]
 fn test_parse_empty() {

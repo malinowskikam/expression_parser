@@ -1,9 +1,9 @@
 use expression_parser::expression::{ExpressionArgs};
-use expression_parser::parse::parse_string;
+use expression_parser::parser::parse_string;
 
 fn main() {
     let expression_args = ExpressionArgs::empty();
-    let input = "21";
+    let input = "21 + 1";
 
 
     let result = parse_string(input.to_string());
