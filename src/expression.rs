@@ -3,11 +3,6 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use crate::errors::AttachImpossible;
 
-#[derive(Debug)]
-pub enum ExpressionType {
-    ScalarValue,
-    Sum
-}
 
 pub struct ExpressionArgs {
     pub functions: HashMap<String, Box<dyn Fn(f64) -> f64>>,
@@ -31,7 +26,13 @@ pub struct ScalarValue {
 }
 
 #[derive(Clone)]
-pub struct Sum {
+pub struct Addition {
+    pub left: Box<dyn Expression>,
+    pub right: Option<Box<dyn Expression>>,
+}
+
+#[derive(Clone)]
+pub struct Subtraction {
     pub left: Box<dyn Expression>,
     pub right: Option<Box<dyn Expression>>,
 }
@@ -68,12 +69,13 @@ impl Expression for ScalarValue {
     fn attach_after(&self, exp: &Box<dyn Expression>) -> Result<Box<dyn Expression>, Box<dyn Error>> {
         match exp.get_exp_type() {
             ExpressionType::ScalarValue => Err(Box::from(AttachImpossible { target_type: self.get_exp_type(), attach_type: exp.get_exp_type() })),
-            ExpressionType::Sum => Ok(Box::from(Sum {left: Box::from(ScalarValue{value: self.value}), right: None}))
+            ExpressionType::Addition => Ok(Box::from(Addition {left: Box::from(self.clone()), right: None})),
+            ExpressionType::Subtraction => Ok(Box::from(Subtraction {left: Box::from(self.clone()), right: None}))
         }
     }
 }
 
-impl Expression for Sum {
+impl Expression for Addition {
     fn evaluate(&self, args: &ExpressionArgs) -> f64 {
         match &self.right {
             None => panic!("Attempt to evaluate sum with missing right side"),
@@ -82,11 +84,34 @@ impl Expression for Sum {
             },
         }
     }
-    fn to_string(&self) -> String { format!("{} + {}", self.left, self.right.as_ref().unwrap().clone_box()) }
-    fn get_exp_type(&self) -> ExpressionType { ExpressionType::Sum }
+    fn to_string(&self) -> String {
+        format!("{} + {}", self.left, self.right.as_ref().unwrap().clone_box())
+    }
+    fn get_exp_type(&self) -> ExpressionType { ExpressionType::Addition }
     fn attach_after(&self, exp: &Box<dyn Expression>) -> Result<Box<dyn Expression>, Box<dyn Error>> {
         match self.right {
-            None => { Ok(Box::from(Sum {left: self.left.clone_box(), right: Some(self.right.as_ref().unwrap().clone_box())})) }
+            None => { Ok(Box::from(Addition {left: self.left.clone_box(), right: Some(exp.clone_box())})) }
+            Some(_) => Err(Box::from(AttachImpossible { target_type: self.get_exp_type(), attach_type: exp.get_exp_type() })),
+        }
+    }
+}
+
+impl Expression for Subtraction {
+    fn evaluate(&self, args: &ExpressionArgs) -> f64 {
+        match &self.right {
+            None => panic!("Attempt to evaluate subtract with missing right side"),
+            Some(exp_box) => {
+                self.left.evaluate(args) - exp_box.as_ref().evaluate(args)
+            },
+        }
+    }
+    fn to_string(&self) -> String {
+        format!("{} - {}", self.left, self.right.as_ref().unwrap().clone_box())
+    }
+    fn get_exp_type(&self) -> ExpressionType { ExpressionType::Subtraction }
+    fn attach_after(&self, exp: &Box<dyn Expression>) -> Result<Box<dyn Expression>, Box<dyn Error>> {
+        match self.right {
+            None => { Ok(Box::from(Subtraction {left: self.left.clone_box(), right: Some(exp.clone_box())})) }
             Some(_) => Err(Box::from(AttachImpossible { target_type: self.get_exp_type(), attach_type: exp.get_exp_type() })),
         }
     }
