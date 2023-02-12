@@ -3,7 +3,7 @@ use expression_parser::parser::parse_string;
 
 fn main() {
     let expression_args = ExpressionArgs::empty();
-    let input = "21 + 1";
+    let input = "212 - 1";
 
 
     let result = parse_string(input.to_string());

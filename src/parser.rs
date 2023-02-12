@@ -1,11 +1,20 @@
 use std::error::Error;
+use std::fmt::{Debug, Formatter};
 use crate::enums::{BufferState, CharType, OperatorType};
 use crate::errors::{EmptyBuffer, InvalidCharacter, ParsingError};
-use crate::expression::{Expression, ScalarValue, Sum};
+use crate::expression::{Expression, ScalarValue, Subtraction, Addition};
+
 struct ParserContext {
     buffer: String,
     state: BufferState,
     expression: Option<Box<dyn Expression>>,
+}
+
+impl Debug for ParserContext {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let exp_repr = if let Some(exp_box) = &self.expression { exp_box.as_ref().to_string() } else { String::from("") };
+        write!(f, "{{ buffer = {:?}, state = {:?}, exp = {:?} }}", self.buffer, self.state, exp_repr)
+    }
 }
 
 impl ParserContext {
@@ -29,8 +38,11 @@ fn parse_buffer(context: &mut ParserContext) -> Result<(), Box<dyn Error>> {
             }
         }
         _ => todo!(),
-    };
-    context.attach_exp(&result?)
+    }?;
+    context.attach_exp(&result)?;
+    context.buffer = String::new();
+    context.state = BufferState::ExpTerminated;
+    Ok(())
 }
 
 fn parse_empty(character: char, char_type: CharType, index: usize, context: &mut ParserContext) -> Result<(), Box<dyn Error>> {
@@ -65,22 +77,25 @@ fn parse_exp_terminated(character: char, char_type: CharType, index: usize, cont
     match char_type {
         CharType::Operator => {
             let operator_type = OperatorType::parse_operator_type(character);
-            match operator_type {
-                OperatorType::Add => match context.expression {
-                    Some(ref exp) => context.expression = Some(Box::from(Sum { left: exp.clone_box(), right: None })),
-                    None => panic!("Operator after exp terminated, but expression is None. Should be unreachable state"),
-                },
-                OperatorType::Subtract => todo!(),
-                OperatorType::Multiply => todo!(),
-                OperatorType::Divide => todo!(),
-                OperatorType::Power => todo!(),
-                OperatorType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Operator at the start of a block" })),
+            match context.expression {
+                Some(ref exp) => {
+                    match operator_type {
+                        OperatorType::Add => context.expression = Some(Box::from(Addition { left: exp.clone_box(), right: None })),
+                        OperatorType::Subtract => context.expression = Some(Box::from(Subtraction { left: exp.clone_box(), right: None })),
+                        OperatorType::Multiply => todo!(),
+                        OperatorType::Divide => todo!(),
+                        OperatorType::Power => todo!(),
+                        OperatorType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Operator at the start of a block" })),
+                    }
+                }
+                None => panic!("Operator after exp terminated, but expression is None. Should be unreachable state"),
             }
         }
         CharType::Whitespace => (),
         CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Unknown symbol" })),
         _ => return Err(Box::from(InvalidCharacter { character, index, message: "Expected operator after previous expression" })),
     };
+    context.state = BufferState::Empty;
     Ok(())
 }
 
@@ -94,7 +109,7 @@ fn parse_number(character: char, char_type: CharType, index: usize, context: &mu
             let operator_type = OperatorType::parse_operator_type(character);
             match operator_type {
                 OperatorType::Add => match context.expression {
-                    Some(ref exp) => context.expression = Some(Box::from(Sum { left: exp.clone_box(), right: None })),
+                    Some(ref exp) => context.expression = Some(Box::from(Addition { left: exp.clone_box(), right: None })),
                     None => panic!("Operator after exp terminated, but expression is None. Should be unreachable state"),
                 },
                 OperatorType::Subtract => todo!(),
@@ -117,14 +132,14 @@ fn parse_number(character: char, char_type: CharType, index: usize, context: &mu
 
 fn parse_name(character: char, char_type: CharType, index: usize, context: &mut ParserContext) -> Result<(), Box<dyn Error>> {
     match char_type {
-                CharType::Number => context.buffer.push(character),
-                CharType::Letter => context.buffer.push(character),
-                CharType::Operator => todo!(),
-                CharType::Whitespace => todo!(),
-                CharType::Bracket => todo!(),
-                CharType::Point => todo!(),
-                CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Unknown symbol" })),
-            }
+        CharType::Number => context.buffer.push(character),
+        CharType::Letter => context.buffer.push(character),
+        CharType::Operator => todo!(),
+        CharType::Whitespace => todo!(),
+        CharType::Bracket => todo!(),
+        CharType::Point => todo!(),
+        CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Unknown symbol" })),
+    }
     Ok(())
 }
 
@@ -136,6 +151,7 @@ pub fn parse_string(string_to_parse: String) -> Result<Box<dyn Expression>, Box<
     };
 
     for (index, character) in string_to_parse.chars().enumerate() {
+//        dbg!(index,character,&context);
         let char_type = CharType::parse_char_type(character);
 
         match context.state {
@@ -150,6 +166,8 @@ pub fn parse_string(string_to_parse: String) -> Result<Box<dyn Expression>, Box<
     if !context.buffer.is_empty() {
         parse_buffer(&mut context)?;
     }
+
+//    dbg!(&context);
 
     match context.expression {
         None => Err(Box::from(EmptyBuffer)),
