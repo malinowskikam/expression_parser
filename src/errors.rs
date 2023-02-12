@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter, Result};
-use crate::expression::ExpressionType;
+use crate::enums::ExpressionType;
 
 #[derive(Debug)]
 pub struct EmptyBuffer;
