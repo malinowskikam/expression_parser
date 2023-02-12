@@ -61,16 +61,3 @@ impl OperatorType {
         }
     }
 }
-
-impl ExpressionType {
-    pub(crate) fn get_expression(ExpressionType) -> OperatorType {
-        match &character {
-            '+' => OperatorType::Add,
-            '-' => OperatorType::Subtract,
-            '*' => OperatorType::Multiply,
-            '/' => OperatorType::Divide,
-            '^' => OperatorType::Power,
-            _ => panic!("Unknown operator type. should never happen")
-        }
-    }
-}
