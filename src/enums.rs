@@ -1,7 +1,6 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BufferState {
     Empty,
-    ExpTerminated,
     Number,
     Name,
     Bracket,
@@ -25,14 +24,15 @@ pub enum OperatorType {
     Multiply,
     Divide,
     Power,
-    Unknown,
 }
 
 #[derive(Debug)]
 pub enum ExpressionType {
     ScalarValue,
     Addition,
-    Subtraction
+    Subtraction,
+    Multiplication,
+    Division
 }
 
 impl CharType {
