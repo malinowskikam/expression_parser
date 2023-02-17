@@ -20,29 +20,30 @@ impl Debug for ParserContext {
 impl ParserContext {
     fn attach_exp(&mut self, exp: &Box<dyn Expression>) -> Result<(), Box<dyn Error>> {
         match &mut self.expression {
+            Some(exp_box) => self.expression = Some(exp_box.as_ref().attach_after(exp)?),
             None => self.expression = Some(exp.clone_box()),
-            Some(exp_box) => { self.expression = Some(exp_box.as_ref().attach_after(exp)?) }
         }
         Ok(())
     }
 }
 
-fn parse_buffer(context: &mut ParserContext) -> Result<(), Box<dyn Error>> {
-    let result = match context.state {
-        BufferState::Empty => return Err(Box::from(ParsingError { message: "Empty buffer!" })),
-        BufferState::Number => {
-            let result = context.buffer.parse::<f64>();
-            match result {
-                Ok(v) => Ok(Box::from(ScalarValue { value: v }) as Box<dyn Expression>),
-                Err(e) => Err(format!("Error while parsing number: {}", e.to_string()))
-            }
-        }
-        _ => todo!(),
-    }?;
-    context.attach_exp(&result)?;
+fn apply_buffer(context: &mut ParserContext) -> Result<(), Box<dyn Error>> {
+    let parsed_exp = parse_buffer(context)?;
+    context.attach_exp(&parsed_exp)?;
     context.buffer = String::new();
     context.state = BufferState::Empty;
     Ok(())
+}
+
+fn parse_buffer(context: &mut ParserContext) -> Result<Box<dyn Expression>, Box<dyn Error>> {
+    match context.state {
+        BufferState::Empty => return Err(Box::from(ParsingError { message: String::from("Empty buffer!") })),
+        BufferState::Number => {
+            let value = context.buffer.parse::<f64>()?;
+            Ok(Box::from(ScalarValue { value }) as Box<dyn Expression>)
+        }
+        _ => todo!(),
+    }
 }
 
 fn parse_empty(character: char, char_type: CharType, index: usize, context: &mut ParserContext) -> Result<(), Box<dyn Error>> {
@@ -73,15 +74,15 @@ fn parse_empty(character: char, char_type: CharType, index: usize, context: &mut
                             context.state = BufferState::Number;
                             context.buffer.push(character)
                         },
-                        _ => return Err(Box::from(InvalidCharacter { character, index, message: "Operator at the start of a block" })),
+                        _ => return Err(Box::from(InvalidCharacter { character, index, message: String::from("Operator at the start of a block") })),
                     }
                 },
             }
         }
         CharType::Whitespace => (),
         CharType::Bracket => todo!(),
-        CharType::Point => return Err(Box::from(InvalidCharacter { character, index, message: "Point at the start of a block" })),
-        CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Unknown symbol" })),
+        CharType::Point => return Err(Box::from(InvalidCharacter { character, index, message: String::from("Point at the start of a block") })),
+        CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: String::from("Unknown symbol") })),
     };
     Ok(())
 }
@@ -89,19 +90,19 @@ fn parse_empty(character: char, char_type: CharType, index: usize, context: &mut
 fn parse_number(character: char, char_type: CharType, index: usize, context: &mut ParserContext) -> Result<(), Box<dyn Error>> {
     match char_type {
         CharType::Number => context.buffer.push(character),
-        CharType::Letter => return Err(Box::from(InvalidCharacter { character, index, message: "Letter inside number" })), //todo implicit multiplication
+        CharType::Letter => return Err(Box::from(InvalidCharacter { character, index, message: String::from("Letter inside number") })), //todo implicit multiplication
         CharType::Operator => {
-            parse_buffer(context)?;
+            apply_buffer(context)?;
             context.state = BufferState::Empty;
             parse_empty(character, char_type, index, context)?;
         },
         CharType::Whitespace => {
-            parse_buffer(context)?;
+            apply_buffer(context)?;
             context.state = BufferState::Empty;
         },
         CharType::Bracket => todo!(),
         CharType::Point => context.buffer.push(character),
-        CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Unknown symbol" })),
+        CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: String::from("Unknown symbol") })),
     }
     Ok(())
 }
@@ -111,17 +112,17 @@ fn parse_name(character: char, char_type: CharType, index: usize, context: &mut 
         CharType::Number => context.buffer.push(character),
         CharType::Letter => context.buffer.push(character),
         CharType::Operator => {
-            parse_buffer(context)?;
+            apply_buffer(context)?;
             context.state = BufferState::Empty;
             parse_empty(character, char_type, index, context)?
         },
         CharType::Whitespace => {
-            parse_buffer(context)?;
+            apply_buffer(context)?;
             context.state = BufferState::Empty;
         },
         CharType::Bracket => todo!(),
         CharType::Point => context.buffer.push(character),
-        CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: "Unknown symbol" })),
+        CharType::Unknown => return Err(Box::from(InvalidCharacter { character, index, message: String::from("Unknown symbol") })),
     }
     Ok(())
 }
@@ -145,7 +146,7 @@ pub fn parse_string(string_to_parse: String) -> Result<Box<dyn Expression>, Box<
     }
 
     if !context.buffer.is_empty() {
-        parse_buffer(&mut context)?;
+        apply_buffer(&mut context)?;
     }
 
     match context.expression {

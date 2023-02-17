@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter, Result};
+use std::num::ParseFloatError;
 use crate::enums::ExpressionType;
 
 #[derive(Debug)]
@@ -13,7 +14,7 @@ impl Error for EmptyBuffer {}
 pub struct InvalidCharacter {
     pub index: usize,
     pub character: char,
-    pub message: &'static str,
+    pub message: String,
 }
 
 impl Display for InvalidCharacter { fn fmt(&self, f: &mut Formatter<'_>) -> Result { write!(f, "Error at char '{}' at index {} ({})", self.character, self.index, self.message) } }
@@ -32,9 +33,15 @@ impl Error for AttachImpossible {}
 
 #[derive(Debug)]
 pub struct ParsingError {
-    pub message: &'static str,
+    pub message: String,
 }
 
 impl Display for ParsingError { fn fmt(&self, f: &mut Formatter<'_>) -> Result { write!(f, "Parsing buffer error ({})", self.message) } }
 
 impl Error for ParsingError {}
+
+impl From<ParseFloatError> for ParsingError {
+    fn from(value: ParseFloatError) -> Self {
+        ParsingError { message: value.to_string() }
+    }
+}

@@ -207,3 +207,24 @@ fn test_divide_float() {
     setup.assert_exp_result(result, 1.90909090909f64, "4.2 / 2.2");
 }
 
+#[test]
+fn test_add_multiply() {
+    let setup = Setup::new();
+    let result = parse_string("5 + 6 * 7".to_string());
+    setup.assert_exp_result(result, 47.0f64, "5 + 6 * 7");
+}
+
+#[test]
+fn test_multiply_add() {
+    let setup = Setup::new();
+    let result = parse_string("5 * 6 + 7".to_string());
+    setup.assert_exp_result(result, 37.0f64, "5 * 6 + 7");
+}
+
+#[test]
+fn test_multiply_add_multiply() {
+    let setup = Setup::new();
+    let result = parse_string("5 * 6 + 7 * 8".to_string());
+    setup.assert_exp_result(result, 86.0f64, "5 * 6 + 7 * 8");
+}
+
